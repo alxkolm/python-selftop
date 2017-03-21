@@ -1,5 +1,7 @@
-from bottle import route, run
+from datetime import date
 import sqlite3
+from bottle import route, run
+import machine_learning.string_clusterization as string_clusterization
 
 DB_STRING = '/home/alx/.selftop/selftop.db'
 
@@ -42,12 +44,16 @@ def index():
       LEFT JOIN window ON window.id = record.window_id
       LEFT JOIN process ON process.id = window.process_id
     WHERE duration > 0
+    AND start >= ?
     ORDER BY start;
     """
-    records = [dict(x) for x in cur.execute(sql).fetchall()]
+    records = [dict(x) for x in cur.execute(sql, [date.today()]).fetchall()]
 
-    # TODO Keys activity data
+    titles = set([record['window_title'] for record in records if record['window_title'] != ''])
+    titles_cluster_labels = string_clusterization.run(list(titles))
+    cluster_map = {str(x[0]): x[1] for x in zip(titles, titles_cluster_labels)}
 
-    return {'processes': processes, 'windows': windows, 'records': records}
+
+    return {'processes': processes, 'windows': windows, 'records': records, 'xxx': cluster_map}
 
 run(host='localhost', port=8080, debug=True, reloader=True)
