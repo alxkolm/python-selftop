@@ -4,32 +4,37 @@ from bottle import route, run
 import machine_learning.string_clusterization as string_clusterization
 
 DB_STRING = '/home/alx/.selftop/selftop.db'
+TRANSITION_MATRIX_DURATION_THRESHOLD = 5
+db = sqlite3.connect(DB_STRING)
+db.row_factory = sqlite3.Row
+cur = db.cursor()
 
 
 @route('/')
 def index():
-    db = sqlite3.connect(DB_STRING)
-    db.row_factory = sqlite3.Row
-    cur = db.cursor()
+    processes = get_processes()
 
-    sql = """ SELECT id, name, alias FROM process """
-    processes = [dict(x) for x in cur.execute(sql).fetchall()]
+    windows = get_windows()
 
-    sql = """
-    SELECT
-        window.*,
-        SUM(duration) as time,
-        SUM(motions) as motions,
-        SUM(motions_filtered) as motions_filtered,
-        SUM(clicks) as clicks,
-        SUM(scrolls) as scrolls,
-        SUM(keys) as keys
-    FROM window
-    JOIN record on window.id = record.window_id
-    GROUP BY window.title
-    """
-    windows = [dict(x) for x in cur.execute(sql).fetchall()]
+    records = get_records()
 
+    titles = set([record['window_title'] for record in records if record['window_title'] != ''])
+    cluster_map = get_title_clusters(titles)
+
+    useful_windows = [x for x in records if x.duration >= TRANSITION_MATRIX_DURATION_THRESHOLD]
+
+
+    return {'processes': processes, 'windows': windows, 'records': records, 'titleClusters': cluster_map}
+
+
+def get_title_clusters(titles):
+    titles_cluster_labels = string_clusterization.run(list(titles))
+    cluster_map = {str(x[0]): int(x[1]) for x in
+                   zip(titles, titles_cluster_labels)}
+    return cluster_map
+
+
+def get_records():
     sql = """
     SELECT
       record.id,
@@ -48,12 +53,31 @@ def index():
     ORDER BY start;
     """
     records = [dict(x) for x in cur.execute(sql, [date.today()]).fetchall()]
-
-    titles = set([record['window_title'] for record in records if record['window_title'] != ''])
-    titles_cluster_labels = string_clusterization.run(list(titles))
-    cluster_map = {str(x[0]): x[1] for x in zip(titles, titles_cluster_labels)}
+    return records
 
 
-    return {'processes': processes, 'windows': windows, 'records': records, 'xxx': cluster_map}
+def get_windows():
+    sql = """
+    SELECT
+        window.*,
+        SUM(duration) as time,
+        SUM(motions) as motions,
+        SUM(motions_filtered) as motions_filtered,
+        SUM(clicks) as clicks,
+        SUM(scrolls) as scrolls,
+        SUM(keys) as keys
+    FROM window
+    JOIN record on window.id = record.window_id
+    GROUP BY window.title
+    """
+    windows = [dict(x) for x in cur.execute(sql).fetchall()]
+    return windows
+
+
+def get_processes():
+    sql = """ SELECT id, name, alias FROM process """
+    processes = [dict(x) for x in cur.execute(sql).fetchall()]
+    return processes
+
 
 run(host='localhost', port=8080, debug=True, reloader=True)
