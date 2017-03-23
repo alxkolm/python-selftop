@@ -1,7 +1,8 @@
+from __future__ import absolute_import
 from datetime import date
 import sqlite3
 from bottle import route, run
-import machine_learning.string_clusterization as string_clusterization
+import selftop.machine_learning.string_clusterization as string_clusterization
 
 DB_STRING = '/home/alx/.selftop/selftop.db'
 TRANSITION_MATRIX_DURATION_THRESHOLD = 5
@@ -21,7 +22,16 @@ def index():
     titles = set([record['window_title'] for record in records if record['window_title'] != ''])
     cluster_map = get_title_clusters(titles)
 
-    useful_windows = [x for x in records if x.duration >= TRANSITION_MATRIX_DURATION_THRESHOLD]
+    useful_windows = [x for x in records if x['duration'] >= TRANSITION_MATRIX_DURATION_THRESHOLD]
+    matrix = {}
+    prev = useful_windows[0]
+    for curr in useful_windows[1:]:
+        idx = (prev['window_id'], curr['window_id'])
+        if idx not in matrix:
+            matrix[idx] = 0
+        matrix[idx] += 1
+        prev = curr
+
 
 
     return {'processes': processes, 'windows': windows, 'records': records, 'titleClusters': cluster_map}
