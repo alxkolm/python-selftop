@@ -1,5 +1,7 @@
 from __future__ import absolute_import
 from datetime import date
+import tempfile
+import subprocess
 import sqlite3
 from bottle import route, run
 import selftop.machine_learning.string_clusterization as string_clusterization
@@ -31,6 +33,46 @@ def index():
             matrix[idx] = 0
         matrix[idx] += 1
         prev = curr
+
+    _, file_data_path = tempfile.mkstemp(None, 'selftop_data')
+    _, file_mci_path = tempfile.mkstemp()
+    _, file_tab_path = tempfile.mkstemp()
+    _, file_cluster_native_path = tempfile.mkstemp()
+    _, file_cluster_path = tempfile.mkstemp()
+
+    file_data = open(file_data_path, 'w')
+    for idx, value2 in matrix.items():
+        file_data.write('{}\t{}\t{}\n'.format(idx[0], idx[1], matrix[idx]))
+    file_data.close()
+    cmd = "mcxload " \
+          " --stream-mirror" \
+          " -abc {file_data_path}" \
+          " -o {filename_mci_path}" \
+          " -write-tab {filename_tab_path}" \
+        " && mcl" \
+          " {filename_mci_path}" \
+          " -o {filename_cluster_native}" \
+        " && mcxdump" \
+          " -icl {filename_cluster_native_path}" \
+          " -tabr {filename_tab_path}" \
+          " -o {filename_cluster_path}"
+    result = subprocess.run([
+        'mcxload',
+        '--stream-mirror',
+        " -abc {file_data_path}",
+        " -o {filename_mci_path}",
+        " -write-tab {filename_tab_path}"])
+    result = subprocess.run([
+        'mcl',
+        '{filename_mci_path}',
+        '-o {filename_cluster_native}'
+    ])
+    result = subprocess.run([
+        'mcxdump',
+        "-icl {filename_cluster_native_path}",
+        "-tabr {filename_tab_path}",
+        "-o {filename_cluster_path}"
+    ])
 
 
 
