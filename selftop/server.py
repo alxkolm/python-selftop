@@ -142,9 +142,10 @@ def get_windows():
         SUM(keys) as keys
     FROM window
     JOIN record on window.id = record.window_id
+    WHERE record.start >= ?
     GROUP BY window.title
     """
-    windows = [dict(x) for x in cur.execute(sql).fetchall()]
+    windows = [dict(x) for x in cur.execute(sql, [date.today()]).fetchall()]
     return windows
 
 
