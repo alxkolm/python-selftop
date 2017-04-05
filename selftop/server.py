@@ -2,7 +2,6 @@ from __future__ import absolute_import
 import os
 from datetime import date
 import tempfile
-import subprocess
 import sqlite3
 from bottle import route, run
 import selftop.machine_learning.string_clusterization as string_clusterization
@@ -93,8 +92,6 @@ def get_title_clusters(titles):
     values = list(titles.values())
     titles_set = list(set(titles.values()))
     titles_cluster_labels = string_clusterization.run(titles_set)
-    cluster_map = {str(x[0]): int(x[1]) for x in
-                   zip(titles_set, titles_cluster_labels)}
 
     def get_id_by_title(title_str):
         return [keys[idx] for idx, v in enumerate(values) if v == title_str]
