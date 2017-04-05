@@ -122,11 +122,11 @@ def get_records():
       LEFT JOIN window ON window.id = record.window_id
       LEFT JOIN process ON process.id = window.process_id
     WHERE duration > 0
-    --AND start >= ?
+    AND start >= ?
     ORDER BY start;
     """
-    # records = [dict(x) for x in cur.execute(sql, [date.today()]).fetchall()]
-    records = [dict(x) for x in cur.execute(sql).fetchall()]
+    records = [dict(x) for x in cur.execute(sql, [date.today()]).fetchall()]
+
     return records
 
 
