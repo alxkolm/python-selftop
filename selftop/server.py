@@ -3,7 +3,7 @@ import os
 from datetime import date
 import tempfile
 import sqlite3
-from bottle import route, run
+import bottle
 import selftop.machine_learning.string_clusterization as string_clusterization
 
 DB_STRING = '/home/alx/.selftop/selftop.db'
@@ -11,9 +11,10 @@ TRANSITION_MATRIX_DURATION_THRESHOLD = 5
 db = sqlite3.connect(DB_STRING)
 db.row_factory = sqlite3.Row
 cur = db.cursor()
+app = bottle.app()
 
 
-@route('/')
+@app.route('/')
 def index():
     processes = get_processes()
 
@@ -131,7 +132,7 @@ def get_windows():
     sql = """
     SELECT
         window.*,
-        SUM(duration) as time,
+        SUM(duration / 1000) as time,
         SUM(motions) as motions,
         SUM(motions_filtered) as motions_filtered,
         SUM(clicks) as clicks,
@@ -140,7 +141,7 @@ def get_windows():
     FROM window
     JOIN record on window.id = record.window_id
     WHERE record.start >= ?
-    GROUP BY window.title
+    GROUP BY window.id
     """
     windows = [dict(x) for x in cur.execute(sql, [date.today()]).fetchall()]
     return windows
@@ -152,4 +153,23 @@ def get_processes():
     return processes
 
 
-run(host='localhost', port=8080, debug=True, reloader=True)
+class EnableCors(object):
+    name = 'enable_cors'
+    api = 2
+
+    def apply(self, fn, context):
+        def _enable_cors(*args, **kwargs):
+            # set CORS headers
+            bottle.response.headers['Access-Control-Allow-Origin'] = '*'
+            bottle.response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS'
+            bottle.response.headers['Access-Control-Allow-Headers'] = 'Origin, Accept, Content-Type, X-Requested-With, X-CSRF-Token'
+
+            if bottle.request.method != 'OPTIONS':
+                # actual request; reply with the actual response
+                return fn(*args, **kwargs)
+
+        return _enable_cors
+
+
+app.install(EnableCors())
+app.run(host='localhost', port=8080, debug=True, reloader=True)
