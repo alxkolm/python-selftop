@@ -6,7 +6,7 @@ import sqlite3
 import bottle
 import selftop.machine_learning.string_clusterization as string_clusterization
 
-DB_STRING = '/home/alx/.selftop/selftop.db'
+DB_STRING = '/home/alexey.kolmakov/.selftop/selftop.db'
 TRANSITION_MATRIX_DURATION_THRESHOLD = 5
 db = sqlite3.connect(DB_STRING)
 db.row_factory = sqlite3.Row
@@ -36,6 +36,8 @@ def mcl_clusters(records):
     """Returns window_id => claster_label dict"""
     useful_windows = [x for x in records if
                       x['duration'] >= TRANSITION_MATRIX_DURATION_THRESHOLD]
+
+    # Build trasition matrix
     matrix = {}
     prev = useful_windows[0]
     for curr in useful_windows[1:]:
@@ -44,6 +46,8 @@ def mcl_clusters(records):
             matrix[idx] = 0
         matrix[idx] += 1
         prev = curr
+
+    # Prepare paths
     _, file_data_path = tempfile.mkstemp(None, 'selftop_data')
     _, file_mci_path = tempfile.mkstemp()
     _, file_tab_path = tempfile.mkstemp()
@@ -53,6 +57,8 @@ def mcl_clusters(records):
     for idx, value2 in matrix.items():
         file_data.write('{}\t{}\t{}\n'.format(idx[0], idx[1], matrix[idx]))
     file_data.close()
+
+    # Build command line
     cmd = "mcxload " \
           " --stream-mirror" \
           " -abc {file_data_path}" \
@@ -71,6 +77,8 @@ def mcl_clusters(records):
             file_cluster_native_path=file_cluster_native_path,
             file_cluster_path=file_cluster_path
             )
+
+    # execute commant and get result
     os.system(cmd)
     class_label = 0
     mcl_cluster_map = {}
@@ -79,6 +87,8 @@ def mcl_clusters(records):
             for window_id in line.split('\t'):
                 mcl_cluster_map[int(window_id)] = str(class_label)
             class_label += 1
+
+    # cleanup
     os.remove(file_data_path)
     os.remove(file_mci_path)
     os.remove(file_tab_path)
@@ -172,4 +182,4 @@ class EnableCors(object):
 
 
 app.install(EnableCors())
-app.run(host='localhost', port=8080, debug=True, reloader=True)
+app.run(host='localhost', port=9999, debug=True, reloader=True)
