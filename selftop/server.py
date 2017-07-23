@@ -1,12 +1,12 @@
-import os
-from datetime import date
-import tempfile
 import sqlite3
+from datetime import date
+
 import bottle
+
 import selftop.machine_learning.string_clusterization as string_clusterization
+import selftop.machine_learning.mcl_clusterization as mcl_clusterization
 
 DB_STRING = '/home/alexey.kolmakov/.selftop/selftop.db'
-TRANSITION_MATRIX_DURATION_THRESHOLD = 15
 db = sqlite3.connect(DB_STRING)
 db.row_factory = sqlite3.Row
 cur = db.cursor()
@@ -25,76 +25,11 @@ def index():
               if record['window_title'] != ''}
     cluster_map = get_title_clusters(titles)
 
-    mcl_cluster_map = mcl_clusters(records)
+    mcl_cluster_map = mcl_clusterization.mcl_clusters(
+        mcl_clusterization.buildTransitionMatrix(records))
 
     return {'processes': processes, 'windows': windows, 'records': records,
             'titleClusters': cluster_map, 'mclClusters': mcl_cluster_map}
-
-
-def mcl_clusters(records):
-    """Returns window_id => claster_label dict"""
-    useful_windows = [x for x in records if
-                      x['duration'] >= TRANSITION_MATRIX_DURATION_THRESHOLD]
-
-    # Build trasition matrix
-    matrix = {}
-    if len(useful_windows) != 0:
-        prev = useful_windows[0]
-        for curr in useful_windows[1:]:
-            idx = (prev['window_id'], curr['window_id'])
-            if idx not in matrix:
-                matrix[idx] = 0
-            matrix[idx] += 1
-            prev = curr
-
-    # Prepare paths
-    _, file_data_path = tempfile.mkstemp(None, 'selftop_data')
-    _, file_mci_path = tempfile.mkstemp()
-    _, file_tab_path = tempfile.mkstemp()
-    _, file_cluster_native_path = tempfile.mkstemp()
-    _, file_cluster_path = tempfile.mkstemp()
-    file_data = open(file_data_path, 'w')
-    for idx, value2 in matrix.items():
-        file_data.write('{}\t{}\t{}\n'.format(idx[0], idx[1], matrix[idx]))
-    file_data.close()
-
-    # Build command line
-    cmd = "mcxload " \
-          " --stream-mirror" \
-          " -abc {file_data_path}" \
-          " -o {file_mci_path}" \
-          " -write-tab {file_tab_path}" \
-          " && mcl" \
-          " {file_mci_path}" \
-          " -o {file_cluster_native_path}" \
-          " && mcxdump" \
-          " -icl {file_cluster_native_path}" \
-          " -tabr {file_tab_path}" \
-          " -o {file_cluster_path}".format(
-            file_data_path=file_data_path,
-            file_mci_path=file_mci_path,
-            file_tab_path=file_tab_path,
-            file_cluster_native_path=file_cluster_native_path,
-            file_cluster_path=file_cluster_path
-            )
-
-    # execute command and get result
-    os.system(cmd)
-    class_label = 0
-    mcl_cluster_map = {}
-    with open(file_cluster_path, 'r') as file:
-        for line in file:
-            for window_id in line.split('\t'):
-                mcl_cluster_map[int(window_id)] = str(class_label)
-            class_label += 1
-
-    # cleanup
-    os.remove(file_data_path)
-    os.remove(file_mci_path)
-    os.remove(file_tab_path)
-    os.remove(file_cluster_native_path)
-    os.remove(file_cluster_path)
-    return mcl_cluster_map
 
 
 def get_title_clusters(titles):
