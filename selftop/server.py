@@ -3,6 +3,7 @@ import sqlite3
 import bottle
 
 import selftop.machine_learning.mcl_clusterization as mcl_clusterization
+import selftop.machine_learning.record_clusterization as record_clusterization
 import selftop.data
 
 
@@ -24,8 +25,10 @@ def index():
     mcl_cluster_map = mcl_clusterization.mcl_clusters(
         mcl_clusterization.buildTransitionMatrix(records))
 
+    records_cluster_map = record_clusterization.run(records, mcl_cluster_map, cluster_map)
+
     return {'processes': processes, 'windows': windows, 'records': records,
-            'titleClusters': cluster_map, 'mclClusters': mcl_cluster_map}
+            'titleClusters': cluster_map, 'mclClusters': mcl_cluster_map, 'recordClusters': records_cluster_map}
 
 
 class EnableCors(object):
