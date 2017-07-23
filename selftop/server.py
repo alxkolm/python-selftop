@@ -1,4 +1,3 @@
-from __future__ import absolute_import
 import os
 from datetime import date
 import tempfile
@@ -7,7 +6,7 @@ import bottle
 import selftop.machine_learning.string_clusterization as string_clusterization
 
 DB_STRING = '/home/alexey.kolmakov/.selftop/selftop.db'
-TRANSITION_MATRIX_DURATION_THRESHOLD = 5
+TRANSITION_MATRIX_DURATION_THRESHOLD = 15
 db = sqlite3.connect(DB_STRING)
 db.row_factory = sqlite3.Row
 cur = db.cursor()
@@ -39,13 +38,14 @@ def mcl_clusters(records):
 
     # Build trasition matrix
     matrix = {}
-    prev = useful_windows[0]
-    for curr in useful_windows[1:]:
-        idx = (prev['window_id'], curr['window_id'])
-        if idx not in matrix:
-            matrix[idx] = 0
-        matrix[idx] += 1
-        prev = curr
+    if len(useful_windows) != 0:
+        prev = useful_windows[0]
+        for curr in useful_windows[1:]:
+            idx = (prev['window_id'], curr['window_id'])
+            if idx not in matrix:
+                matrix[idx] = 0
+            matrix[idx] += 1
+            prev = curr
 
     # Prepare paths
     _, file_data_path = tempfile.mkstemp(None, 'selftop_data')
@@ -78,7 +78,7 @@ def mcl_clusters(records):
             file_cluster_path=file_cluster_path
             )
 
-    # execute commant and get result
+    # execute command and get result
     os.system(cmd)
     class_label = 0
     mcl_cluster_map = {}
@@ -181,5 +181,6 @@ class EnableCors(object):
         return _enable_cors
 
 
-app.install(EnableCors())
-app.run(host='localhost', port=9999, debug=True, reloader=True)
+if __name__ == '__main__':
+    app.install(EnableCors())
+    app.run(host='localhost', port=9999, debug=True, reloader=True)
