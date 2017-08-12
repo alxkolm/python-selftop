@@ -8,7 +8,7 @@ import selftop.data
 
 
 app = bottle.app()
-
+EXCLUDED_WINDOWS = [661]
 
 @app.route('/')
 def index():
@@ -22,8 +22,11 @@ def index():
               if record['window_title'] != ''}
     cluster_map = selftop.data.get_title_clusters(titles)
 
+    records_filtered = [record for record in records if
+               record['window_id'] not in EXCLUDED_WINDOWS and record['window_title'] != '']
+
     mcl_cluster_map = mcl_clusterization.mcl_clusters(
-        mcl_clusterization.buildTransitionMatrix(records))
+        mcl_clusterization.buildTransitionMatrix(records_filtered))
 
     records_cluster_map = record_clusterization.run(records, mcl_cluster_map, cluster_map)
 

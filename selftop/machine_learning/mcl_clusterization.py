@@ -37,6 +37,7 @@ def mcl_clusters(matrix):
           " -write-tab {file_tab_path}" \
           " && {mcl}" \
           " {file_mci_path}" \
+          " -I 1.4" \
           " -o {file_cluster_native_path}" \
           " && {mcxdump}" \
           " -icl {file_cluster_native_path}" \
@@ -80,7 +81,13 @@ def buildTransitionMatrix(records):
     if len(useful_records) != 0:
         prev = useful_records[0]
         for curr in useful_records[1:]:
-            index = (prev['window_id'], curr['window_id'])
+            p = prev['window_id']
+            c = curr['window_id']
+            if p < c:
+                index = (p, c)
+            else:
+                index = (c, p)
+
             if index not in matrix:
                 matrix[index] = 0
             matrix[index] += 1
